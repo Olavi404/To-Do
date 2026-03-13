@@ -6,9 +6,6 @@ const refreshBtn = document.getElementById("refresh-btn");
 const clearCompletedBtn = document.getElementById("clear-completed-btn");
 const counterEl = document.getElementById("counter");
 const statusEl = document.getElementById("status");
-const undoBarEl = document.getElementById("undo-bar");
-const undoTextEl = document.getElementById("undo-text");
-const undoBtn = document.getElementById("undo-btn");
 const lastUpdatedEl = document.getElementById("last-updated");
 const historyListEl = document.getElementById("history-list");
 const template = document.getElementById("todo-item-template");
@@ -25,9 +22,6 @@ let loadInFlight = false;
 let lastSyncedAt = null;
 let pollHandle;
 let relativeTimeHandle;
-let undoTimeoutHandle;
-let latestUndoTaskId = null;
-const pendingDeletes = new Map();
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -60,11 +54,6 @@ function updateLastUpdatedText() {
   lastUpdatedEl.textContent = `Last updated: ${relativeTime(lastSyncedAt)}`;
 }
 
-function setUndoState(visible, message = "") {
-  undoBarEl.hidden = !visible;
-  undoTextEl.textContent = message;
-}
-
 function renderHistory() {
   historyListEl.textContent = "";
 
@@ -94,7 +83,7 @@ function renderHistory() {
 }
 
 function getRenderableTasks() {
-  return tasks.filter((task) => !pendingDeletes.has(task.id));
+  return tasks;
 }
 
 function getVisibleTasks() {
@@ -151,7 +140,8 @@ function render() {
     });
 
     deleteBtn.addEventListener("click", async () => {
-      await queueDelete(task.id);
+      await deleteTask(task.id);
+      setStatus("Task deleted");
     });
 
     listEl.append(node);
@@ -235,71 +225,10 @@ async function deleteTask(id) {
     method: "DELETE",
     body: JSON.stringify({ id }),
   });
-}
-
-async function commitDelete(taskId, { silent = false } = {}) {
-  if (!pendingDeletes.has(taskId)) return;
-
-  pendingDeletes.delete(taskId);
-  await deleteTask(taskId);
-
-  if (latestUndoTaskId === taskId) {
-    latestUndoTaskId = null;
-    setUndoState(false);
-    clearTimeout(undoTimeoutHandle);
-  }
-
-  await loadTasks({ silent });
-}
-
-async function queueDelete(taskId) {
-  if (latestUndoTaskId && latestUndoTaskId !== taskId) {
-    await commitDelete(latestUndoTaskId, { silent: true });
-  }
-
-  const task = tasks.find((item) => item.id === taskId);
-  if (!task) return;
-
-  pendingDeletes.set(taskId, task);
-  latestUndoTaskId = taskId;
-  setUndoState(true, `Deleted "${task.text}". Undo?`);
-  render();
-
-  clearTimeout(undoTimeoutHandle);
-  undoTimeoutHandle = window.setTimeout(() => {
-    commitDelete(taskId).catch((error) => {
-      setStatus(error.message);
-    });
-  }, 10000);
-}
-
-function undoDelete() {
-  if (!latestUndoTaskId) return;
-
-  pendingDeletes.delete(latestUndoTaskId);
-  latestUndoTaskId = null;
-  setUndoState(false);
-  clearTimeout(undoTimeoutHandle);
-  render();
-  setStatus("Delete undone");
-}
-
-async function flushPendingDeletes() {
-  const ids = Array.from(pendingDeletes.keys());
-  if (ids.length === 0) return;
-
-  for (const id of ids) {
-    await deleteTask(id);
-    pendingDeletes.delete(id);
-  }
-
-  latestUndoTaskId = null;
-  setUndoState(false);
-  clearTimeout(undoTimeoutHandle);
+  await loadTasks();
 }
 
 async function clearCompleted() {
-  await flushPendingDeletes();
   await request("/.netlify/functions/todos", {
     method: "DELETE",
     body: JSON.stringify({ clearCompleted: true }),
@@ -345,10 +274,6 @@ clearCompletedBtn.addEventListener("click", async () => {
   } catch (error) {
     setStatus(error.message);
   }
-});
-
-undoBtn.addEventListener("click", () => {
-  undoDelete();
 });
 
 for (const button of filterButtons) {
