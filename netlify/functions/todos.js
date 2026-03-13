@@ -11,11 +11,18 @@ function json(data, status = 200) {
 }
 
 async function load() {
-  return (await store.getJSON(TASKS_KEY)) || [];
+  const raw = await store.get(TASKS_KEY);
+  if (!raw) return [];
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
 }
 
 async function save(tasks) {
-  await store.setJSON(TASKS_KEY, tasks);
+  await store.set(TASKS_KEY, JSON.stringify(tasks));
 }
 
 function makeId() {
