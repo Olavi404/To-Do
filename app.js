@@ -19,7 +19,7 @@ const ALLOWED_LABELS = ["General", "Work", "Home", "Urgent"];
 
 let tasks = [];
 let historyItems = [];
-let activeFilter = "all";
+let activeFilter = "active";
 let activeLabelFilter = "all";
 let loadInFlight = false;
 let lastSyncedAt = null;
