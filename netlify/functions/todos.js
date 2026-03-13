@@ -2,6 +2,7 @@ import { getStore } from "@netlify/blobs";
 
 const store = getStore("shared-todo");
 const TASKS_KEY = "tasks";
+const ALLOWED_LABELS = ["General", "Work", "Home", "Urgent"];
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -29,6 +30,11 @@ function makeId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function normalizeLabel(value) {
+  const label = String(value || "").trim();
+  return ALLOWED_LABELS.includes(label) ? label : "General";
+}
+
 export default async (request) => {
   try {
     if (request.method === "GET") {
@@ -39,12 +45,14 @@ export default async (request) => {
     if (request.method === "POST") {
       const body = await request.json();
       const text = String(body?.text || "").trim();
+      const label = normalizeLabel(body?.label);
       if (!text) return json({ error: "Task text is required" }, 400);
 
       const tasks = await load();
       tasks.unshift({
         id: makeId(),
         text,
+        label,
         completed: false,
         createdAt: new Date().toISOString(),
       });
@@ -64,6 +72,7 @@ export default async (request) => {
       const updated = {
         ...tasks[index],
         ...(typeof body.text === "string" ? { text: body.text.trim() } : {}),
+        ...(body?.label !== undefined ? { label: normalizeLabel(body.label) } : {}),
         ...(typeof body.completed === "boolean" ? { completed: body.completed } : {}),
         updatedAt: new Date().toISOString(),
       };

@@ -21,11 +21,18 @@
         <p class="eyebrow">No login. One shared board.</p>
         <h1>Team To-Do</h1>
         <p class="sub">Anyone with this link can add and update tasks in real time on refresh.</p>
+        <p id="last-updated" class="last-updated">Last updated: just now</p>
       </header>
 
       <section class="panel">
         <form id="todo-form" class="todo-form">
           <input id="todo-input" type="text" maxlength="140" placeholder="What needs to be done?" required />
+          <select id="todo-label" aria-label="Task label">
+            <option value="General">General</option>
+            <option value="Work">Work</option>
+            <option value="Home">Home</option>
+            <option value="Urgent">Urgent</option>
+          </select>
           <button type="submit">Add</button>
         </form>
 
@@ -43,7 +50,19 @@
           <button class="filter-btn" type="button" data-filter="done">Done</button>
         </div>
 
+        <div class="filters" role="group" aria-label="Filter labels">
+          <button class="label-filter-btn is-active" type="button" data-label-filter="all">All labels</button>
+          <button class="label-filter-btn" type="button" data-label-filter="General">General</button>
+          <button class="label-filter-btn" type="button" data-label-filter="Work">Work</button>
+          <button class="label-filter-btn" type="button" data-label-filter="Home">Home</button>
+          <button class="label-filter-btn" type="button" data-label-filter="Urgent">Urgent</button>
+        </div>
+
         <ul id="todo-list" class="todo-list" aria-live="polite"></ul>
+        <div id="undo-bar" class="undo-bar" hidden>
+          <span id="undo-text"></span>
+          <button id="undo-btn" class="ghost" type="button">Undo</button>
+        </div>
         <p id="status" class="status"></p>
       </section>
     </main>
@@ -55,6 +74,12 @@
           <span class="check-ui"></span>
         </label>
         <input type="text" class="todo-text" maxlength="140" />
+        <select class="task-label" aria-label="Task label">
+          <option value="General">General</option>
+          <option value="Work">Work</option>
+          <option value="Home">Home</option>
+          <option value="Urgent">Urgent</option>
+        </select>
         <button class="delete-btn" type="button" aria-label="Delete task">Delete</button>
       </li>
     </template>
