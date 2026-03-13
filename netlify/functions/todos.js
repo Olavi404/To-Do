@@ -2,7 +2,9 @@ import { getStore } from "@netlify/blobs";
 
 const store = getStore("shared-todo");
 const TASKS_KEY = "tasks";
+const HISTORY_KEY = "history";
 const ALLOWED_LABELS = ["General", "Work", "Home", "Urgent"];
+const MAX_HISTORY_ITEMS = 30;
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -22,8 +24,23 @@ async function load() {
   }
 }
 
+async function loadHistory() {
+  const raw = await store.get(HISTORY_KEY);
+  if (!raw) return [];
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
 async function save(tasks) {
   await store.set(TASKS_KEY, JSON.stringify(tasks));
+}
+
+async function saveHistory(history) {
+  await store.set(HISTORY_KEY, JSON.stringify(history));
 }
 
 function makeId() {
@@ -35,11 +52,33 @@ function normalizeLabel(value) {
   return ALLOWED_LABELS.includes(label) ? label : "General";
 }
 
+function clipText(value) {
+  const text = String(value || "").trim();
+  if (text.length <= 36) return text;
+  return `${text.slice(0, 33)}...`;
+}
+
+async function pushHistory(message) {
+  const history = await loadHistory();
+  history.unshift({
+    id: makeId(),
+    message,
+    at: new Date().toISOString(),
+  });
+
+  if (history.length > MAX_HISTORY_ITEMS) {
+    history.length = MAX_HISTORY_ITEMS;
+  }
+
+  await saveHistory(history);
+}
+
 export default async (request) => {
   try {
     if (request.method === "GET") {
       const tasks = await load();
-      return json({ tasks });
+      const history = await loadHistory();
+      return json({ tasks, history });
     }
 
     if (request.method === "POST") {
@@ -57,6 +96,7 @@ export default async (request) => {
         createdAt: new Date().toISOString(),
       });
       await save(tasks);
+      await pushHistory(`Added \"${clipText(text)}\" [${label}]`);
       return json({ ok: true });
     }
 
@@ -68,9 +108,10 @@ export default async (request) => {
       const tasks = await load();
       const index = tasks.findIndex((task) => task.id === id);
       if (index === -1) return json({ error: "Task not found" }, 404);
+      const existing = tasks[index];
 
       const updated = {
-        ...tasks[index],
+        ...existing,
         ...(typeof body.text === "string" ? { text: body.text.trim() } : {}),
         ...(body?.label !== undefined ? { label: normalizeLabel(body.label) } : {}),
         ...(typeof body.completed === "boolean" ? { completed: body.completed } : {}),
@@ -81,6 +122,19 @@ export default async (request) => {
 
       tasks[index] = updated;
       await save(tasks);
+
+      if (existing.completed !== updated.completed) {
+        await pushHistory(`${updated.completed ? "Completed" : "Reopened"} \"${clipText(updated.text)}\"`);
+      }
+
+      if (existing.text !== updated.text) {
+        await pushHistory(`Renamed \"${clipText(existing.text)}\" to \"${clipText(updated.text)}\"`);
+      }
+
+      if (existing.label !== updated.label) {
+        await pushHistory(`Relabeled \"${clipText(updated.text)}\" to [${updated.label}]`);
+      }
+
       return json({ ok: true });
     }
 
@@ -89,8 +143,12 @@ export default async (request) => {
 
       if (body?.clearCompleted) {
         const tasks = await load();
+        const removed = tasks.filter((task) => task.completed).length;
         const nextTasks = tasks.filter((task) => !task.completed);
         await save(nextTasks);
+        if (removed > 0) {
+          await pushHistory(`Cleared ${removed} completed ${removed === 1 ? "task" : "tasks"}`);
+        }
         return json({ ok: true });
       }
 
@@ -98,12 +156,16 @@ export default async (request) => {
       if (!id) return json({ error: "Task id is required" }, 400);
 
       const tasks = await load();
+      const deleted = tasks.find((task) => task.id === id);
       const nextTasks = tasks.filter((task) => task.id !== id);
       if (nextTasks.length === tasks.length) {
         return json({ error: "Task not found" }, 404);
       }
 
       await save(nextTasks);
+      if (deleted) {
+        await pushHistory(`Deleted \"${clipText(deleted.text)}\"`);
+      }
       return json({ ok: true });
     }
 

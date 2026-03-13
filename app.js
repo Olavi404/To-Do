@@ -10,6 +10,7 @@ const undoBarEl = document.getElementById("undo-bar");
 const undoTextEl = document.getElementById("undo-text");
 const undoBtn = document.getElementById("undo-btn");
 const lastUpdatedEl = document.getElementById("last-updated");
+const historyListEl = document.getElementById("history-list");
 const template = document.getElementById("todo-item-template");
 const filterButtons = document.querySelectorAll(".filter-btn");
 const labelFilterButtons = document.querySelectorAll(".label-filter-btn");
@@ -17,6 +18,7 @@ const labelFilterButtons = document.querySelectorAll(".label-filter-btn");
 const ALLOWED_LABELS = ["General", "Work", "Home", "Urgent"];
 
 let tasks = [];
+let historyItems = [];
 let activeFilter = "all";
 let activeLabelFilter = "all";
 let loadInFlight = false;
@@ -61,6 +63,34 @@ function updateLastUpdatedText() {
 function setUndoState(visible, message = "") {
   undoBarEl.hidden = !visible;
   undoTextEl.textContent = message;
+}
+
+function renderHistory() {
+  historyListEl.textContent = "";
+
+  if (historyItems.length === 0) {
+    const item = document.createElement("li");
+    item.className = "history-item";
+    item.textContent = "No activity yet";
+    historyListEl.append(item);
+    return;
+  }
+
+  for (const event of historyItems) {
+    const item = document.createElement("li");
+    item.className = "history-item";
+
+    const message = document.createElement("span");
+    message.textContent = event.message;
+
+    const when = document.createElement("span");
+    when.className = "history-time";
+    const eventDate = event.at ? new Date(event.at) : null;
+    when.textContent = relativeTime(eventDate);
+
+    item.append(message, when);
+    historyListEl.append(item);
+  }
 }
 
 function getRenderableTasks() {
@@ -140,6 +170,8 @@ function render() {
   for (const button of labelFilterButtons) {
     button.classList.toggle("is-active", button.dataset.labelFilter === activeLabelFilter);
   }
+
+  renderHistory();
 }
 
 async function request(path, options = {}) {
@@ -172,6 +204,7 @@ async function loadTasks({ silent = false } = {}) {
       ...task,
       label: normalizeLabel(task.label),
     }));
+    historyItems = Array.isArray(payload.history) ? payload.history : [];
     lastSyncedAt = new Date();
     render();
     if (!silent) setStatus("Synced");
@@ -345,6 +378,7 @@ function startAutoRefresh() {
 function startRelativeTimeTicker() {
   relativeTimeHandle = window.setInterval(() => {
     updateLastUpdatedText();
+    renderHistory();
   }, 30000);
 }
 

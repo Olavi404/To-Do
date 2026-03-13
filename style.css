@@ -260,6 +260,43 @@ h1 {
   gap: 12px;
 }
 
+.history {
+  margin-top: 14px;
+  border-top: 1px dashed var(--line);
+  padding-top: 12px;
+}
+
+.history h2 {
+  margin: 0;
+  font-family: "Fraunces", serif;
+  font-size: 1.15rem;
+}
+
+.history-list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.history-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 7px 9px;
+  font-size: 0.92rem;
+  color: var(--ink);
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.history-time {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .status {
   margin-top: 12px;
   min-height: 1.2em;
