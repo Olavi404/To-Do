@@ -1,10 +1,13 @@
 import { getStore } from "@netlify/blobs";
 
-const store = getStore("shared-todo");
 const TASKS_KEY = "tasks";
 const HISTORY_KEY = "history";
 const ALLOWED_LABELS = ["General", "Work", "Home", "Urgent"];
 const MAX_HISTORY_ITEMS = 30;
+
+function getTodoStore() {
+  return getStore("shared-todo");
+}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -14,6 +17,7 @@ function json(data, status = 200) {
 }
 
 async function load() {
+  const store = getTodoStore();
   const raw = await store.get(TASKS_KEY);
   if (!raw) return [];
 
@@ -25,6 +29,7 @@ async function load() {
 }
 
 async function loadHistory() {
+  const store = getTodoStore();
   const raw = await store.get(HISTORY_KEY);
   if (!raw) return [];
 
@@ -36,10 +41,12 @@ async function loadHistory() {
 }
 
 async function save(tasks) {
+  const store = getTodoStore();
   await store.set(TASKS_KEY, JSON.stringify(tasks));
 }
 
 async function saveHistory(history) {
+  const store = getTodoStore();
   await store.set(HISTORY_KEY, JSON.stringify(history));
 }
 
